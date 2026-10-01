@@ -1,23 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   DndContext,
   DragEndEvent,
   DragOverlay,
   DragStartEvent,
   PointerSensor,
+  KeyboardSensor,
   useSensor,
   useSensors,
-} from '@dnd-kit/core';
-import {
-  SortableContext,
-  arrayMove,
-  verticalListSortingStrategy,
-} from '@dnd-kit/sortable';
-import { KanbanColumn } from './KanbanColumn';
-import { KanbanCard } from './KanbanCard';
-import { Task, TaskStage } from '../../types';
-import { Button } from '../ui/Button';
-import { Plus } from 'lucide-react';
+} from "@dnd-kit/core";
+import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
+import { KanbanColumn } from "./KanbanColumn";
+import { KanbanCard } from "./KanbanCard";
+import { Task, TaskStage } from "../../types";
 
 interface KanbanBoardProps {
   stages: TaskStage[];
@@ -43,11 +38,18 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
       activationConstraint: {
         distance: 3,
       },
-    })
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
   );
 
   const handleDragStart = (event: DragStartEvent) => {
-    const task = tasks.find(t => t.id === event.active.id);
+    const task = tasks.find(
+      (t) =>
+        t.id === event.active.data.current?.taskId ||
+        `task:${t.id}` === event.active.id,
+    );
     setActiveTask(task || null);
   };
 
@@ -57,25 +59,41 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
 
     if (!over) return;
 
-    const taskId = active.id as string;
-    const newStageId = over.id as string;
+    const task = tasks.find(
+      (t) =>
+        t.id === active.data.current?.taskId || `task:${t.id}` === active.id,
+    );
+    const targetTask = tasks.find((t) => `task:${t.id}` === over.id);
+    const newStageId =
+      over.data.current?.stageId ??
+      targetTask?.stage.id ??
+      stages.find((stage) => `stage:${stage.id}` === over.id)?.id;
 
-    const task = tasks.find(t => t.id === taskId);
-    if (task && task.stage.id !== newStageId) {
-      onTaskMove(taskId, newStageId);
+    if (
+      task &&
+      stages.some((stage) => stage.id === newStageId) &&
+      task.stage.id !== newStageId
+    ) {
+      onTaskMove(task.id, newStageId);
     }
   };
 
   const getTasksForStage = (stageId: string) => {
-    return tasks.filter(task => task.stage.id === stageId);
+    return tasks.filter((task) => task.stage.id === stageId);
   };
 
   return (
-    <div className="flex gap-6 h-full overflow-x-auto pb-4">
+    <div
+      role="region"
+      aria-label="Task board"
+      tabIndex={0}
+      className="flex gap-6 h-full overflow-x-auto pb-4 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+    >
       <DndContext
         sensors={sensors}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
+        onDragCancel={() => setActiveTask(null)}
       >
         {stages.map((stage) => {
           const stageTasks = getTasksForStage(stage.id);

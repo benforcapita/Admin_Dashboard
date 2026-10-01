@@ -50,7 +50,7 @@ export interface Contact {
   email: string;
   phone: string;
   jobTitle: string;
-  status: 'NEW' | 'QUALIFIED' | 'UNQUALIFIED' | 'WON' | 'LOST';
+  status: "NEW" | "QUALIFIED" | "UNQUALIFIED" | "WON" | "LOST";
   avatarUrl?: string;
   companyId: string;
 }
@@ -66,7 +66,7 @@ export interface Deal {
 
 export interface Activity {
   id: string;
-  type: 'CREATE' | 'UPDATE' | 'DELETE';
+  type: "CREATE" | "UPDATE" | "DELETE";
   resource: string;
   user: User;
   date: string;

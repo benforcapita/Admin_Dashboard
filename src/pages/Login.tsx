@@ -1,25 +1,32 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
-import { Button } from '../components/ui/Button';
-import { Input } from '../components/forms/Input';
+import React, { useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
+import { Button } from "../components/ui/Button";
+import { Input } from "../components/forms/Input";
 
 export const Login: React.FC = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const submitting = useRef(false);
   const { login, isLoading } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    if (submitting.current) return;
+    submitting.current = true;
+    setIsSubmitting(true);
+    setError("");
 
     const result = await login(email, password);
+    submitting.current = false;
+    setIsSubmitting(false);
     if (result.success) {
-      navigate('/');
+      navigate("/");
     } else {
-      setError(result.error || 'Login failed');
+      setError(result.error || "Login failed");
     }
   };
 
@@ -28,13 +35,18 @@ export const Login: React.FC = () => {
       <div className="max-w-md w-full space-y-8">
         <div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Sign in to Admin Dashboard
+            Open your local CRM
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
-            Use <strong>michael@dundermifflin.com</strong> and <strong>demo demo</strong>
+            Use <strong>michael@dundermifflin.com</strong> and{" "}
+            <strong>demo demo</strong>
           </p>
         </div>
-        
+
+        <p className="text-sm text-center text-gray-600">
+          Demo sign-in only. There is no server authentication. Never enter a
+          real password.
+        </p>
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="space-y-4">
             <Input
@@ -58,13 +70,15 @@ export const Login: React.FC = () => {
           </div>
 
           {error && (
-            <div className="text-red-600 text-sm text-center">{error}</div>
+            <div role="alert" className="text-red-600 text-sm text-center">
+              {error}
+            </div>
           )}
 
           <Button
             type="submit"
             className="w-full"
-            isLoading={isLoading}
+            isLoading={isLoading || isSubmitting}
             disabled={!email || !password}
           >
             Sign in
