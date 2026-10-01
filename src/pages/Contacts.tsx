@@ -1,56 +1,64 @@
-import React, { useState, useMemo } from 'react';
-import { Plus, Search, Edit, Trash2 } from 'lucide-react';
-import { Card } from '../components/ui/Card';
-import { Button } from '../components/ui/Button';
-import { Avatar } from '../components/ui/Avatar';
-import { Badge } from '../components/ui/Badge';
-import { Modal } from '../components/ui/Modal';
-import { Input } from '../components/forms/Input';
-import { Select } from '../components/forms/Select';
-import { mockContacts, mockCompanies } from '../utils/mockData';
-import { getStatusColor } from '../utils/helpers';
-import { Contact } from '../types';
+import { useWorkspace } from "../contexts/WorkspaceContext";
+import { useSearchParams } from "react-router-dom";
+import React, { useState, useMemo, useEffect } from "react";
+import { Plus, Search, Edit, Trash2 } from "lucide-react";
+import { Card } from "../components/ui/Card";
+import { Button } from "../components/ui/Button";
+import { Avatar } from "../components/ui/Avatar";
+import { Badge } from "../components/ui/Badge";
+import { Modal } from "../components/ui/Modal";
+import { Input } from "../components/forms/Input";
+import { Select } from "../components/forms/Select";
+
+import { getStatusColor } from "../utils/helpers";
+import { Contact } from "../types";
 
 export const Contacts: React.FC = () => {
-  const [contacts, setContacts] = useState(mockContacts);
-  const [searchTerm, setSearchTerm] = useState('');
+  const { data, setContacts } = useWorkspace();
+  const { contacts, companies } = data;
+  const [params] = useSearchParams();
+  const [formError, setFormError] = useState("");
+  const [searchTerm, setSearchTerm] = useState(params.get("q") ?? "");
+  useEffect(() => setSearchTerm(params.get("q") ?? ""), [params]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    jobTitle: '',
-    status: 'NEW' as Contact['status'],
-    companyId: '',
+    name: "",
+    email: "",
+    phone: "",
+    jobTitle: "",
+    status: "NEW" as Contact["status"],
+    companyId: "",
   });
 
   const filteredContacts = useMemo(() => {
-    return contacts.filter(contact =>
-      contact.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      contact.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      contact.jobTitle.toLowerCase().includes(searchTerm.toLowerCase())
+    return contacts.filter(
+      (contact) =>
+        contact.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        contact.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        contact.jobTitle.toLowerCase().includes(searchTerm.toLowerCase()),
     );
   }, [contacts, searchTerm]);
 
   const statusOptions = [
-    { value: 'NEW', label: 'New' },
-    { value: 'QUALIFIED', label: 'Qualified' },
-    { value: 'UNQUALIFIED', label: 'Unqualified' },
-    { value: 'WON', label: 'Won' },
-    { value: 'LOST', label: 'Lost' },
+    { value: "NEW", label: "New" },
+    { value: "QUALIFIED", label: "Qualified" },
+    { value: "UNQUALIFIED", label: "Unqualified" },
+    { value: "WON", label: "Won" },
+    { value: "LOST", label: "Lost" },
   ];
 
   const handleCreate = () => {
     setEditingContact(null);
     setFormData({
-      name: '',
-      email: '',
-      phone: '',
-      jobTitle: '',
-      status: 'NEW',
-      companyId: '',
+      name: "",
+      email: "",
+      phone: "",
+      jobTitle: "",
+      status: "NEW",
+      companyId: "",
     });
+    setFormError("");
     setIsModalOpen(true);
   };
 
@@ -64,38 +72,65 @@ export const Contacts: React.FC = () => {
       status: contact.status,
       companyId: contact.companyId,
     });
+    setFormError("");
     setIsModalOpen(true);
   };
 
   const handleDelete = (contactId: string) => {
-    if (confirm('Are you sure you want to delete this contact?')) {
-      setContacts(prev => prev.filter(contact => contact.id !== contactId));
+    if (confirm("Are you sure you want to delete this contact?")) {
+      setContacts((prev) => prev.filter((contact) => contact.id !== contactId));
     }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
+    setFormError("");
+    if (
+      ![
+        formData.name,
+        formData.email,
+        formData.phone,
+        formData.jobTitle,
+        formData.companyId,
+      ].every((v) => v.trim())
+    ) {
+      setFormError("Contact name and all required fields must be filled.");
+      return;
+    }
+    if (
+      contacts.some(
+        (c) =>
+          c.id !== editingContact?.id &&
+          c.email.toLowerCase() === formData.email.trim().toLowerCase(),
+      )
+    ) {
+      setFormError("A contact with this email already exists.");
+      return;
+    }
+    let applied = false;
     if (editingContact) {
-      setContacts(prev => prev.map(contact =>
-        contact.id === editingContact.id
-          ? { ...contact, ...formData }
-          : contact
-      ));
+      applied = setContacts((prev) =>
+        prev.map((contact) =>
+          contact.id === editingContact.id
+            ? { ...contact, ...formData }
+            : contact,
+        ),
+      );
     } else {
       const newContact: Contact = {
-        id: Date.now().toString(),
+        id: crypto.randomUUID(),
         ...formData,
       };
-      setContacts(prev => [...prev, newContact]);
+      applied = setContacts((prev) => [...prev, newContact]);
     }
 
-    setIsModalOpen(false);
+    if (applied) setIsModalOpen(false);
   };
 
   const getCompanyName = (companyId: string) => {
-    const company = mockCompanies.find(c => c.id === companyId);
-    return company?.name || 'Unknown Company';
+    const company = companies.find((c) => c.id === companyId);
+    return company?.name || "Unknown Company";
   };
 
   return (
@@ -113,9 +148,13 @@ export const Contacts: React.FC = () => {
       <Card padding={false}>
         <div className="p-6 border-b border-gray-200">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+            <Search
+              className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+              size={16}
+            />
             <input
-              type="text"
+              aria-label="Search contacts"
+              type="search"
               placeholder="Search contacts..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -160,8 +199,12 @@ export const Contacts: React.FC = () => {
                         <div className="text-sm font-medium text-gray-900">
                           {contact.name}
                         </div>
-                        <div className="text-sm text-gray-500">{contact.email}</div>
-                        <div className="text-sm text-gray-500">{contact.jobTitle}</div>
+                        <div className="text-sm text-gray-500">
+                          {contact.email}
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          {contact.jobTitle}
+                        </div>
                       </div>
                     </div>
                   </td>
@@ -169,7 +212,15 @@ export const Contacts: React.FC = () => {
                     {getCompanyName(contact.companyId)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <Badge variant={getStatusColor(contact.status) === 'green' ? 'success' : getStatusColor(contact.status) === 'red' ? 'danger' : 'default'}>
+                    <Badge
+                      variant={
+                        getStatusColor(contact.status) === "green"
+                          ? "success"
+                          : getStatusColor(contact.status) === "red"
+                            ? "danger"
+                            : "default"
+                      }
+                    >
                       {contact.status}
                     </Badge>
                   </td>
@@ -179,12 +230,14 @@ export const Contacts: React.FC = () => {
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex gap-2">
                       <button
+                        aria-label={`Edit ${contact.name}`}
                         onClick={() => handleEdit(contact)}
                         className="text-blue-600 hover:text-blue-900"
                       >
                         <Edit size={16} />
                       </button>
                       <button
+                        aria-label={`Delete ${contact.name}`}
                         onClick={() => handleDelete(contact.id)}
                         className="text-red-600 hover:text-red-900"
                       >
@@ -194,6 +247,13 @@ export const Contacts: React.FC = () => {
                   </td>
                 </tr>
               ))}
+              {filteredContacts.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="p-8 text-center text-gray-500">
+                    No contacts found. Add a record or change your search.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -202,16 +262,23 @@ export const Contacts: React.FC = () => {
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title={editingContact ? 'Edit Contact' : 'Create Contact'}
+        title={editingContact ? "Edit Contact" : "Create Contact"}
         size="lg"
       >
         <form onSubmit={handleSubmit} className="space-y-4">
+          {formError && (
+            <p role="alert" className="text-sm text-red-700">
+              {formError}
+            </p>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input
               label="Full Name"
               name="name"
               value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, name: e.target.value })
+              }
               required
             />
             <Input
@@ -219,7 +286,9 @@ export const Contacts: React.FC = () => {
               name="email"
               type="email"
               value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, email: e.target.value })
+              }
               required
             />
             <Input
@@ -227,21 +296,30 @@ export const Contacts: React.FC = () => {
               name="phone"
               type="tel"
               value={formData.phone}
-              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, phone: e.target.value })
+              }
               required
             />
             <Input
               label="Job Title"
               name="jobTitle"
               value={formData.jobTitle}
-              onChange={(e) => setFormData({ ...formData, jobTitle: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, jobTitle: e.target.value })
+              }
               required
             />
             <Select
               label="Status"
               name="status"
               value={formData.status}
-              onChange={(e) => setFormData({ ...formData, status: e.target.value as Contact['status'] })}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  status: e.target.value as Contact["status"],
+                })
+              }
               options={statusOptions}
               required
             />
@@ -249,21 +327,26 @@ export const Contacts: React.FC = () => {
               label="Company"
               name="companyId"
               value={formData.companyId}
-              onChange={(e) => setFormData({ ...formData, companyId: e.target.value })}
-              options={mockCompanies.map(company => ({ value: company.id, label: company.name }))}
+              onChange={(e) =>
+                setFormData({ ...formData, companyId: e.target.value })
+              }
+              options={companies.map((company) => ({
+                value: company.id,
+                label: company.name,
+              }))}
               required
             />
           </div>
           <div className="flex justify-end gap-3 pt-4">
-            <Button 
-              variant="outline" 
-              type="button" 
+            <Button
+              variant="outline"
+              type="button"
               onClick={() => setIsModalOpen(false)}
             >
               Cancel
             </Button>
             <Button type="submit">
-              {editingContact ? 'Update Contact' : 'Create Contact'}
+              {editingContact ? "Update Contact" : "Create Contact"}
             </Button>
           </div>
         </form>

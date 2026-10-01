@@ -1,93 +1,121 @@
-import React, { useState } from 'react';
-import { Plus } from 'lucide-react';
-import { KanbanBoard } from '../components/kanban/KanbanBoard';
-import { Modal } from '../components/ui/Modal';
-import { Input } from '../components/forms/Input';
-import { Select } from '../components/forms/Select';
-import { Button } from '../components/ui/Button';
-import { mockTasks, mockUsers, taskStages } from '../utils/mockData';
-import { Task, User } from '../types';
+import { useWorkspace } from "../contexts/WorkspaceContext";
+import { useSearchParams } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { Plus } from "lucide-react";
+import { KanbanBoard } from "../components/kanban/KanbanBoard";
+import { Modal } from "../components/ui/Modal";
+import { Input } from "../components/forms/Input";
+import { Select } from "../components/forms/Select";
+import { Button } from "../components/ui/Button";
+import { mockUsers, taskStages } from "../utils/mockData";
+import { Task } from "../types";
 
 export const Tasks: React.FC = () => {
-  const [tasks, setTasks] = useState(mockTasks);
+  const { data, setTasks } = useWorkspace();
+  const { tasks } = data;
+  const [params] = useSearchParams();
+  const [formError, setFormError] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    dueDate: '',
-    stageId: '',
+    title: "",
+    description: "",
+    dueDate: "",
+    stageId: "",
     userIds: [] as string[],
   });
 
+  const [searchTerm, setSearchTerm] = useState(params.get("q") ?? "");
+  useEffect(() => setSearchTerm(params.get("q") ?? ""), [params]);
+  const query = searchTerm.toLowerCase();
+  const filteredTasks = tasks.filter((task) =>
+    `${task.title} ${task.description}`.toLowerCase().includes(query),
+  );
+
   const handleTaskMove = (taskId: string, newStageId: string) => {
-    setTasks(prev => prev.map(task => {
-      if (task.id === taskId) {
-        const newStage = taskStages.find(stage => stage.id === newStageId);
-        return newStage ? { ...task, stage: newStage } : task;
-      }
-      return task;
-    }));
+    setTasks((prev) =>
+      prev.map((task) => {
+        if (task.id === taskId) {
+          const newStage = taskStages.find((stage) => stage.id === newStageId);
+          return newStage ? { ...task, stage: newStage } : task;
+        }
+        return task;
+      }),
+    );
   };
 
   const handleTaskCreate = (stageId?: string) => {
     setEditingTask(null);
     setFormData({
-      title: '',
-      description: '',
-      dueDate: '',
+      title: "",
+      description: "",
+      dueDate: "",
       stageId: stageId || taskStages[0].id,
       userIds: [],
     });
+    setFormError("");
     setIsModalOpen(true);
   };
 
   const handleTaskEdit = (taskId: string) => {
-    const task = tasks.find(t => t.id === taskId);
+    const task = tasks.find((t) => t.id === taskId);
     if (task) {
       setEditingTask(task);
       setFormData({
         title: task.title,
         description: task.description,
-        dueDate: task.dueDate ? task.dueDate.split('T')[0] : '',
+        dueDate: task.dueDate ? task.dueDate.split("T")[0] : "",
         stageId: task.stage.id,
-        userIds: task.users.map(user => user.id),
+        userIds: task.users.map((user) => user.id),
       });
+      setFormError("");
       setIsModalOpen(true);
     }
   };
 
   const handleTaskDelete = (taskId: string) => {
-    if (confirm('Are you sure you want to delete this task?')) {
-      setTasks(prev => prev.filter(task => task.id !== taskId));
+    if (confirm("Are you sure you want to delete this task?")) {
+      setTasks((prev) => prev.filter((task) => task.id !== taskId));
     }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    const stage = taskStages.find(s => s.id === formData.stageId);
-    const users = mockUsers.filter(user => formData.userIds.includes(user.id));
-    
+
+    setFormError("");
+    if (!formData.title.trim()) {
+      setFormError("Task title is required.");
+      return;
+    }
+    let applied = false;
+    const stage = taskStages.find((s) => s.id === formData.stageId);
+    const users = mockUsers.filter((user) =>
+      formData.userIds.includes(user.id),
+    );
+
     if (!stage) return;
 
     if (editingTask) {
-      setTasks(prev => prev.map(task =>
-        task.id === editingTask.id
-          ? {
-              ...task,
-              title: formData.title,
-              description: formData.description,
-              dueDate: formData.dueDate ? `${formData.dueDate}T10:00:00Z` : undefined,
-              stage,
-              users,
-              updatedAt: new Date().toISOString(),
-            }
-          : task
-      ));
+      applied = setTasks((prev) =>
+        prev.map((task) =>
+          task.id === editingTask.id
+            ? {
+                ...task,
+                title: formData.title,
+                description: formData.description,
+                dueDate: formData.dueDate
+                  ? `${formData.dueDate}T10:00:00Z`
+                  : undefined,
+                stage,
+                users,
+                updatedAt: new Date().toISOString(),
+              }
+            : task,
+        ),
+      );
     } else {
       const newTask: Task = {
-        id: Date.now().toString(),
+        id: crypto.randomUUID(),
         title: formData.title,
         description: formData.description,
         dueDate: formData.dueDate ? `${formData.dueDate}T10:00:00Z` : undefined,
@@ -96,10 +124,10 @@ export const Tasks: React.FC = () => {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
-      setTasks(prev => [...prev, newTask]);
+      applied = setTasks((prev) => [...prev, newTask]);
     }
 
-    setIsModalOpen(false);
+    if (applied) setIsModalOpen(false);
   };
 
   return (
@@ -114,10 +142,21 @@ export const Tasks: React.FC = () => {
         </Button>
       </div>
 
+      <label className="sr-only" htmlFor="task-search">
+        Search tasks
+      </label>
+      <input
+        id="task-search"
+        type="search"
+        value={searchTerm}
+        onChange={(event) => setSearchTerm(event.target.value)}
+        placeholder="Search tasks…"
+        className="w-full max-w-md border border-gray-300 rounded-lg px-3 py-2"
+      />
       <div className="flex-1 overflow-hidden">
         <KanbanBoard
           stages={taskStages}
-          tasks={tasks}
+          tasks={filteredTasks}
           onTaskMove={handleTaskMove}
           onTaskCreate={handleTaskCreate}
           onTaskEdit={handleTaskEdit}
@@ -128,26 +167,39 @@ export const Tasks: React.FC = () => {
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title={editingTask ? 'Edit Task' : 'Create Task'}
+        title={editingTask ? "Edit Task" : "Create Task"}
         size="lg"
       >
         <form onSubmit={handleSubmit} className="space-y-4">
+          {formError && (
+            <p role="alert" className="text-sm text-red-700">
+              {formError}
+            </p>
+          )}
           <Input
             label="Task Title"
             name="title"
             value={formData.title}
-            onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+            onChange={(e) =>
+              setFormData({ ...formData, title: e.target.value })
+            }
             required
           />
-          
+
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label
+              htmlFor="description"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
               Description
             </label>
             <textarea
+              id="description"
               name="description"
               value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, description: e.target.value })
+              }
               rows={3}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="Enter task description..."
@@ -160,15 +212,22 @@ export const Tasks: React.FC = () => {
               name="dueDate"
               type="date"
               value={formData.dueDate}
-              onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, dueDate: e.target.value })
+              }
             />
-            
+
             <Select
               label="Stage"
               name="stageId"
               value={formData.stageId}
-              onChange={(e) => setFormData({ ...formData, stageId: e.target.value })}
-              options={taskStages.map(stage => ({ value: stage.id, label: stage.title }))}
+              onChange={(e) =>
+                setFormData({ ...formData, stageId: e.target.value })
+              }
+              options={taskStages.map((stage) => ({
+                value: stage.id,
+                label: stage.title,
+              }))}
               required
             />
           </div>
@@ -178,7 +237,7 @@ export const Tasks: React.FC = () => {
               Assignees
             </label>
             <div className="space-y-2">
-              {mockUsers.map(user => (
+              {mockUsers.map((user) => (
                 <label key={user.id} className="flex items-center">
                   <input
                     type="checkbox"
@@ -187,12 +246,14 @@ export const Tasks: React.FC = () => {
                       if (e.target.checked) {
                         setFormData({
                           ...formData,
-                          userIds: [...formData.userIds, user.id]
+                          userIds: [...formData.userIds, user.id],
                         });
                       } else {
                         setFormData({
                           ...formData,
-                          userIds: formData.userIds.filter(id => id !== user.id)
+                          userIds: formData.userIds.filter(
+                            (id) => id !== user.id,
+                          ),
                         });
                       }
                     }}
@@ -205,15 +266,15 @@ export const Tasks: React.FC = () => {
           </div>
 
           <div className="flex justify-end gap-3 pt-4">
-            <Button 
-              variant="outline" 
-              type="button" 
+            <Button
+              variant="outline"
+              type="button"
               onClick={() => setIsModalOpen(false)}
             >
               Cancel
             </Button>
             <Button type="submit">
-              {editingTask ? 'Update Task' : 'Create Task'}
+              {editingTask ? "Update Task" : "Create Task"}
             </Button>
           </div>
         </form>

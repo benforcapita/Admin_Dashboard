@@ -1,14 +1,14 @@
-import React from 'react';
-import { DivideIcon as LucideIcon } from 'lucide-react';
-import { Card } from '../ui/Card';
+import React from "react";
+import type { LucideIcon } from "lucide-react";
+import { Card } from "../ui/Card";
 
 interface StatsCardProps {
   title: string;
   value: string;
-  change: string;
+  change?: string;
   icon: LucideIcon;
   color: string;
-  trend: 'up' | 'down';
+  trend?: "up" | "down";
 }
 
 export const StatsCard: React.FC<StatsCardProps> = ({
@@ -20,10 +20,10 @@ export const StatsCard: React.FC<StatsCardProps> = ({
   trend,
 }) => {
   const colorClasses = {
-    blue: 'bg-blue-500',
-    green: 'bg-green-500',
-    purple: 'bg-purple-500',
-    orange: 'bg-orange-500',
+    blue: "bg-blue-500",
+    green: "bg-green-500",
+    purple: "bg-purple-500",
+    orange: "bg-orange-500",
   };
 
   return (
@@ -32,11 +32,15 @@ export const StatsCard: React.FC<StatsCardProps> = ({
         <div>
           <p className="text-sm font-medium text-gray-600">{title}</p>
           <p className="text-2xl font-bold text-gray-900 mt-1">{value}</p>
-          <p className={`text-sm mt-1 ${trend === 'up' ? 'text-green-600' : 'text-red-600'}`}>
-            {change} from last month
+          <p
+            className={`text-sm mt-1 ${trend ? (trend === "up" ? "text-green-600" : "text-red-600") : "text-gray-500"}`}
+          >
+            {change ?? "Current workspace"}
           </p>
         </div>
-        <div className={`p-3 rounded-full ${colorClasses[color as keyof typeof colorClasses] || 'bg-gray-500'}`}>
+        <div
+          className={`p-3 rounded-full ${colorClasses[color as keyof typeof colorClasses] || "bg-gray-500"}`}
+        >
           <Icon size={24} className="text-white" />
         </div>
       </div>

@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 
 interface CardProps {
   children: React.ReactNode;
@@ -16,17 +16,20 @@ interface CardContentProps {
   className?: string;
 }
 
-const Card: React.FC<CardProps> = ({ children, className = '', padding = true }) => {
-  const baseClasses = `bg-white rounded-lg border border-gray-200 shadow-sm ${padding ? 'p-6' : ''} ${className}`;
-  
-  return (
-    <div className={baseClasses}>
-      {children}
-    </div>
-  );
+const CardBase: React.FC<CardProps> = ({
+  children,
+  className = "",
+  padding = true,
+}) => {
+  const baseClasses = `bg-white rounded-lg border border-gray-200 shadow-sm ${padding ? "p-6" : ""} ${className}`;
+
+  return <div className={baseClasses}>{children}</div>;
 };
 
-const CardHeader: React.FC<CardHeaderProps> = ({ children, className = '' }) => {
+const CardHeader: React.FC<CardHeaderProps> = ({
+  children,
+  className = "",
+}) => {
   return (
     <div className={`flex items-center justify-between mb-4 ${className}`}>
       {children}
@@ -34,15 +37,16 @@ const CardHeader: React.FC<CardHeaderProps> = ({ children, className = '' }) => 
   );
 };
 
-const CardContent: React.FC<CardContentProps> = ({ children, className = '' }) => {
-  return (
-    <div className={className}>
-      {children}
-    </div>
-  );
+const CardContent: React.FC<CardContentProps> = ({
+  children,
+  className = "",
+}) => {
+  return <div className={className}>{children}</div>;
 };
 
-Card.Header = CardHeader;
-Card.Content = CardContent;
+const Card = Object.assign(CardBase, {
+  Header: CardHeader,
+  Content: CardContent,
+});
 
 export { Card };
